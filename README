@@ -1,0 +1,50 @@
+This is the SuperH QEMU staging and development patch tree.
+
+The main purpose of this patch tree is to serve as a centralized point
+where in-progress patches can be gathered and maintained, with the intent
+that everything contained herein is aimed at the upstream QEMU tree with
+a realistic expectation of being merged. Patches are added as they become
+available, and dropped once they have been merged.
+
+Why do this as a quilt tree?
+
+The main goal is to archive and keep track of patches to help people
+working in this area to avoid duplicated effort, to help users get at the
+latest and greatest set of features, and to serve as a general overview
+of what is available in the development stages.
+
+Given that all development is intended to happen on the QEMU development
+tree directly, forking the source base would not be beneficial. As the
+patches contained herein are likewise not intended to hang around for the
+long-haul, tracking them in tree form would lead to either frequent
+rebases or a constantly growing pile of useless metadata from merge
+points with the QEMU development tree.
+
+This is not a fork, only an aid.
+
+QEMU/SH updates and general information should be aimed at the LinuxSH
+wiki QEMU page: http://www.linux-sh.org/shwiki/QEMU
+
+Using the tree:
+
+The patch tree first needs to be checked out for application:
+
+	$ git clone git://git.kernel.org/pub/scm/virt/qemu/lethal/qemu-sh.git
+
+And then applied to the development tree:
+
+	$ cd <qemu svn tree>
+	$ QUILT_PATCHES=<path to cloned qemu-sh> quilt push -a
+
+All other development proceeds as normal.
+
+While quilt ships by default in pretty much every distribution available,
+its home page can be found here: http://savannah.nongnu.org/projects/quilt
+
+For all other quilt-related issues consult the quilt(1) man page.
+
+For qemu issues, contact qemu-devel@nongnu.org.
+
+For general SuperH or kernel issues, contact linux-sh@vger.kernel.org.
+
+For everything else, contact Paul Mundt <lethal@linux-sh.org>.
