@@ -1,0 +1,69 @@
+From 29c7a193744a9b235f9f24023688461ca518342e Mon Sep 17 00:00:00 2001
+From: Takashi Yoshii <yoshii.takashi@renesas.com>
+Date: Thu, 11 Dec 2008 13:09:36 +0900
+Subject: [PATCH] sh4/r2d: update pci, usb and kernel management
+
+Signed-off-by: Takashi Yoshii <yoshii.takashi@renesas.com>
+Signed-off-by: Shin-ichiro KAWASAKI <kawasaki@juno.dti.ne.jp>
+Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+---
+ hw/r2d.c |   29 +++++++++++++++++++++--------
+ 1 files changed, 21 insertions(+), 8 deletions(-)
+
+Index: qemu/hw/r2d.c
+===================================================================
+--- qemu.orig/hw/r2d.c
++++ qemu/hw/r2d.c
+@@ -226,16 +226,25 @@ static void r2d_init(ram_addr_t ram_size
+ 	       serial_hds[2]);
+ 
+     /* onboard CF (True IDE mode, Master only). */
+-    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+-        drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
++    if ((i = drive_get_index(IF_IDE, 0, 0)) != -1)
++        mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
++                      drives_table[i].bdrv, NULL);
++
++    /* PCI host and peripherals */
++    pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
+ 
+     /* NIC: rtl8139 on-board, and 2 slots. */
+-    pci_rtl8139_init(pci, &nd_table[0], 2 << 3);
++    if (nb_nics)
++        pci_rtl8139_init(pci, &nd_table[0], 2 << 3);
+     for (i = 1; i < nb_nics; i++)
+         pci_nic_init(pci, &nd_table[i], -1);
+ 
++    /* USB OHCI for keyboard & mouse */
++    if (usb_enabled)
++        usb_ohci_init_pci(pci, 4, -1);
++
+     /* Todo: register on board registers */
+-    {
++    if (kernel_filename) {
+       int kernel_size;
+       /* initialization which should be done by firmware */
+       uint32_t bcr1 = 1 << 3; /* cs3 SDRAM */
+@@ -243,14 +252,18 @@ static void r2d_init(ram_addr_t ram_size
+       cpu_physical_memory_write(SH7750_BCR1_A7, (uint8_t *)&bcr1, 4);
+       cpu_physical_memory_write(SH7750_BCR2_A7, (uint8_t *)&bcr2, 2);
+ 
+-      kernel_size = load_image(kernel_filename, phys_ram_base);
+-
++      if (kernel_cmdline) {
++          kernel_size = load_image(kernel_filename, phys_ram_base + 0x80000);
++          env->pc = (SDRAM_BASE + 0x80000) | 0xa0000000;
++          pstrcpy(phys_ram_base + 0x10100, 256, kernel_cmdline);
++      } else {
++          kernel_size = load_image(kernel_filename, phys_ram_base);
++          env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
++      }
+       if (kernel_size < 0) {
+         fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+         exit(1);
+       }
+-
+-      env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
+     }
+ }
+ 

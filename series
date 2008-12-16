@@ -1,0 +1,15 @@
+#
+# General architecture patches
+#
+staging/sh7750-51-add-register-bcr3-ncr4-pcr-rtcor-rtcn.patch
+
+#
+# Board support improvements
+#
+staging/sh4-r2d-update-pci-usb-and-kernel-management.patch
+
+#
+# SH-4A improvements
+#
+staging/sh-implment-movcol-and-movlil.patch
+staging/fix-movcal-ocbi-emulation.patch
