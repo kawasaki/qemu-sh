@@ -28,11 +28,11 @@ Index: qemu/hw/r2d.c
 +    pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
  
      /* NIC: rtl8139 on-board, and 2 slots. */
--    pci_rtl8139_init(pci, &nd_table[0], 2 << 3);
+-    pci_nic_init(pci, &nd_table[0], 2 << 3, "rtl8139");
 +    if (nb_nics)
-+        pci_rtl8139_init(pci, &nd_table[0], 2 << 3);
++        pci_nic_init(pci, &nd_table[0], 2 << 3, "rtl8139");
      for (i = 1; i < nb_nics; i++)
-         pci_nic_init(pci, &nd_table[i], -1);
+         pci_nic_init(pci, &nd_table[i], -1, "ne2k_pci");
  
 +    /* USB OHCI for keyboard & mouse */
 +    if (usb_enabled)
