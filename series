@@ -1,7 +1,6 @@
 #
 # General architecture patches
 #
-staging/sh7750-51-add-register-bcr3-ncr4-pcr-rtcor-rtcn.patch
 
 #
 # Board support improvements
