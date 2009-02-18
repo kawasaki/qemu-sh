@@ -2,7 +2,6 @@
 # General architecture patches
 #
 staging/sh7750-51-add-register-bcr3-ncr4-pcr-rtcor-rtcn.patch
-staging/sh_pci-register-resources-both-at-a7-and-p4.patch
 
 #
 # Board support improvements
