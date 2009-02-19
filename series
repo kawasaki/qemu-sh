@@ -1,6 +1,7 @@
 #
 # General architecture patches
 #
+staging/sh4-monitoring-tlbs.patch
 
 #
 # Board support improvements
