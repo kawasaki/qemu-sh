@@ -1,0 +1,95 @@
+Subject:
+[Qemu-devel] [PATCH] SH4: Fixed last UTLB unused
+From:
+Lionel Landwerlin <lionel.landwerlin@openwide.fr>
+Date:
+Mon, 16 Feb 2009 23:41:03 +0100
+To:
+qemu-devel@nongnu.org
+X-Account-Key:
+account2
+X-UIDL:
+490b27fd39cca66809f72b9b88db1f31
+X-Mozilla-Status:
+0005
+X-Mozilla-Status2:
+00000000
+X-DTI-Recipient:
+<kawasaki@juno.dti.ne.jp>
+Return-Path:
+<qemu-devel-bounces+kawasaki=juno.dti.ne.jp@nongnu.org>
+Received:
+from lists.gnu.org (lists.gnu.org [199.232.76.165]) by pop.juno.dti.ne.jp (3.10p) with ESMTP id n1GMitSQ011099 for <kawasaki@juno.dti.ne.jp>; Tue, 17 Feb 2009 07:44:56 +0900 (JST)
+Received:
+from localhost ([127.0.0.1]:50966 helo=lists.gnu.org) by lists.gnu.org with esmtp (Exim 4.43) id 1LZCCr-0007Ug-8u for kawasaki@juno.dti.ne.jp; Mon, 16 Feb 2009 17:44:53 -0500
+Received:
+from mailman by lists.gnu.org with tmda-scanned (Exim 4.43) id 1LZC9D-0006Xf-Rm for qemu-devel@nongnu.org; Mon, 16 Feb 2009 17:41:07 -0500
+Received:
+from exim by lists.gnu.org with spam-scanned (Exim 4.43) id 1LZC9C-0006X1-Ke for qemu-devel@nongnu.org; Mon, 16 Feb 2009 17:41:07 -0500
+Received:
+from [199.232.76.173] (port=39588 helo=monty-python.gnu.org) by lists.gnu.org with esmtp (Exim 4.43) id 1LZC9C-0006Wy-Bz for qemu-devel@nongnu.org; Mon, 16 Feb 2009 17:41:06 -0500
+Received:
+from soufre.accelance.net ([213.162.48.15]:51112) by monty-python.gnu.org with esmtps (TLS-1.0:DHE_RSA_AES_256_CBC_SHA1:32) (Exim 4.60) (envelope-from <lionel.landwerlin@openwide.fr>) id 1LZC9B-0004wd-RZ for qemu-devel@nongnu.org; Mon, 16 Feb 2009 17:41:06 -0500
+Received:
+from [192.168.0.3] (potipota.net [88.168.176.51]) (using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits)) (No client certificate requested) by soufre.accelance.net (Postfix) with ESMTP id 729D245040 for <qemu-devel@nongnu.org>; Mon, 16 Feb 2009 23:41:04 +0100 (CET)
+Content-Type:
+text/plain; charset=UTF-8
+Message-ID:
+<1234824063.8648.6.camel@cocoduo.atr>
+MIME-Version:
+1.0
+X-Mailer:
+Evolution 2.22.3.1
+Content-Transfer-Encoding:
+quoted-printable
+X-detected-operating-system:
+by monty-python.gnu.org: FreeBSD 6.x (1)
+X-BeenThere:
+qemu-devel@nongnu.org
+X-Mailman-Version:
+2.1.5
+Precedence:
+list
+Reply-To:
+qemu-devel@nongnu.org
+List-Id:
+qemu-devel.nongnu.org
+List-Unsubscribe:
+<http://lists.nongnu.org/mailman/listinfo/qemu-devel>, <mailto:qemu-devel-request@nongnu.org?subject=unsubscribe>
+List-Archive:
+<http://lists.gnu.org/pipermail/qemu-devel>
+List-Post:
+<mailto:qemu-devel@nongnu.org>
+List-Help:
+<mailto:qemu-devel-request@nongnu.org?subject=help>
+List-Subscribe:
+<http://lists.nongnu.org/mailman/listinfo/qemu-devel>, <mailto:qemu-devel-request@nongnu.org?subject=subscribe>
+Sender:
+qemu-devel-bounces+kawasaki=juno.dti.ne.jp@nongnu.org
+Errors-To:
+qemu-devel-bounces+kawasaki=juno.dti.ne.jp@nongnu.org
+
+With my previous patch (the one monitoring tlb), I found that the last
+TLB entry was never use. Here a little fix.
+
+
+Signed-off-by: Lionel Landwerlin <lionel.landwerlin@openwide.fr>
+---
+ target-sh4/helper.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/target-sh4/helper.c b/target-sh4/helper.c
+index cd0f392..918a946 100644
+--- a/target-sh4/helper.c
++++ b/target-sh4/helper.c
+@@ -305,7 +305,7 @@ static void increment_urc(CPUState * env)
+     urb = ((env->mmucr) >> 18) & 0x3f;
+     urc = ((env->mmucr) >> 10) & 0x3f;
+     urc++;
+-    if (urc == urb || urc == UTLB_SIZE - 1)
++    if (urc == urb || urc == UTLB_SIZE)
+ 	urc = 0;
+     env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
+ }
+-- 1.5.6.5
+-- ?Lione Landwerlin ? O p e n W i d e 14, rue Gaillon 75002 Paris 
