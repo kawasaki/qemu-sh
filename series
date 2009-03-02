@@ -14,3 +14,8 @@ staging/sh4-r2d-update-pci-usb-and-kernel-management.patch
 #
 staging/sh-implment-movcol-and-movlil.patch
 staging/fix-movcal-ocbi-emulation.patch
+
+#
+# SH-4 improvements
+#
+staging/utlb-search-accel.patch
