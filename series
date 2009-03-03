@@ -5,11 +5,11 @@
 #
 # Board support improvements
 #
+staging/sm501-usb-host.patch
 
 #
 # SH-4A improvements
 #
-staging/sh-implment-movcol-and-movlil.patch
 staging/fix-movcal-ocbi-emulation.patch
 
 #
