@@ -1,8 +1,6 @@
 #
 # General architecture patches
 #
-staging/sh4-monitoring-tlbs.patch
-staging/sh4-fix-unused-last-utlb-entry.patch
 
 #
 # Board support improvements
