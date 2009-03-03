@@ -24,7 +24,7 @@ Index: trunk/target-sh4/helper.c
 ===================================================================
 --- trunk/target-sh4/helper.c	(revision 6628)
 +++ trunk/target-sh4/helper.c	(working copy)
-@@ -323,7 +323,7 @@
+@@ -322,7 +322,7 @@
      if (e == MMU_DTLB_MULTIPLE)
  	e = MMU_ITLB_MULTIPLE;
      else if (e == MMU_DTLB_MISS && update) {
@@ -33,7 +33,8 @@ Index: trunk/target-sh4/helper.c
  	if (e >= 0) {
  	    tlb_t * ientry;
  	    n = itlb_replacement(env);
-@@ -343,15 +343,69 @@
+@@ -341,17 +341,71 @@
+ 	update_itlb_use(env, e);
      return e;
  }
  
@@ -44,7 +45,7 @@ Index: trunk/target-sh4/helper.c
 +
  /* Find utlb entry
     Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
- int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
+ static int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
  {
 +    int min = 0;
 +    int max = env->sorted_utlb_num - 1;
@@ -105,7 +106,9 @@ Index: trunk/target-sh4/helper.c
  }
  
  /* Match address against MMU
-@@ -526,6 +580,63 @@
+    Return MMU_OK, MMU_DTLB_MISS_READ, MMU_DTLB_MISS_WRITE,
+@@ -524,8 +580,65 @@
+     get_physical_address(env, &physical, &prot, addr, 0, 0);
      return physical;
  }
  
@@ -166,10 +169,11 @@ Index: trunk/target-sh4/helper.c
 +    }
 +}
 +
- void cpu_load_tlb(CPUState * env)
+ void cpu_load_tlb(CPUSH4State * env)
  {
      int n = cpu_mmucr_urc(env->mmucr);
-@@ -537,6 +648,8 @@
+     tlb_t * entry = &env->utlb[n];
+@@ -536,6 +648,8 @@
  	if (!same_tlb_entry_exists(env->itlb, ITLB_SIZE, entry)) {
  	    tlb_flush_page(env, address);
  	}
@@ -178,7 +182,7 @@ Index: trunk/target-sh4/helper.c
      }
  
      /* Take values into cpu status from registers. */
-@@ -569,6 +682,9 @@
+@@ -568,6 +682,9 @@
      entry->wt   = (uint8_t)cpu_ptel_wt(env->ptel);
      entry->sa   = (uint8_t)cpu_ptea_sa(env->ptea);
      entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
@@ -188,7 +192,7 @@ Index: trunk/target-sh4/helper.c
  }
  
  void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
-@@ -600,8 +716,12 @@
+@@ -599,8 +716,12 @@
  		    s->tea = addr;
  		    break;
  	        }
@@ -202,7 +206,7 @@ Index: trunk/target-sh4/helper.c
  		entry->v = v;
  		entry->d = d;
  	        utlb_match_entry = entry;
-@@ -636,6 +756,7 @@
+@@ -635,6 +756,7 @@
  	    if (!same_tlb_entry_exists(s->itlb, ITLB_SIZE, entry)) {
  	        tlb_flush_page(s, address);
  	    }
