@@ -45,7 +45,8 @@ Index: trunk/target-sh4/helper.c
 +
  /* Find utlb entry
     Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
- static int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
+-static int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
++int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
  {
 +    int min = 0;
 +    int max = env->sorted_utlb_num - 1;
