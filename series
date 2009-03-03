@@ -6,6 +6,7 @@
 # Board support improvements
 #
 staging/sm501-usb-host.patch
+staging/sh4-r2d-append-option.patch
 
 #
 # SH-4A improvements
