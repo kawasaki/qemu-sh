@@ -1,0 +1,57 @@
+Index: trunk/target-sh4/cpu.h
+===================================================================
+--- trunk/target-sh4/cpu.h	(revision 6676)
++++ trunk/target-sh4/cpu.h	(working copy)
+@@ -88,7 +88,8 @@
+     uint8_t tc;			/* timing control */
+ } tlb_t;
+ 
+-#define UTLB_SIZE 64
++#define UTLB_BITS 8     /* real hard : 6 */
++#define UTLB_SIZE (1 << UTLB_BITS)
+ #define ITLB_SIZE 4
+ 
+ #define NB_MMU_MODES 2
+@@ -228,14 +229,18 @@
+ #define MMUCR    0x1F000010
+ #define MMUCR_AT (1<<0)
+ #define MMUCR_SV (1<<8)
+-#define MMUCR_URC_BITS (6)
+ #define MMUCR_URC_OFFSET (10)
+-#define MMUCR_URC_SIZE (1 << MMUCR_URC_BITS)
+-#define MMUCR_URC_MASK (((MMUCR_URC_SIZE) - 1) << MMUCR_URC_OFFSET)
++#define MMUCR_URC_MASK ((UTLB_SIZE - 1) << MMUCR_URC_OFFSET)
+ static inline int cpu_mmucr_urc (uint32_t mmucr)
+ {
+     return ((mmucr & MMUCR_URC_MASK) >> MMUCR_URC_OFFSET);
+ }
++#define MMUCR_URB_OFFSET (18)
++#define MMUCR_URB_MASK ((UTLB_SIZE - 1) << MMUCR_URB_OFFSET)
++static inline int cpu_mmucr_urb (uint32_t mmucr)
++{
++    return ((mmucr & MMUCR_URB_MASK) >> MMUCR_URB_OFFSET);
++}
+ 
+ /* PTEH : Page Translation Entry High register */
+ #define PTEH_ASID_BITS (8)
+Index: trunk/target-sh4/helper.c
+===================================================================
+--- trunk/target-sh4/helper.c	(revision 6676)
++++ trunk/target-sh4/helper.c	(work copy)
+@@ -346,12 +346,12 @@
+     uint8_t urb, urc;
+ 
+     /* Increment URC */
+-    urb = ((env->mmucr) >> 18) & 0x3f;
+-    urc = ((env->mmucr) >> 10) & 0x3f;
++    urb = cpu_mmucr_urb(env->mmucr);
++    urc = cpu_mmucr_urc(env->mmucr);
+     urc++;
+     if ((urb > 0 && urc > urb) || urc > (UTLB_SIZE - 1))
+-	urc = 0;
+-    env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
++        urc = 0;
++    env->mmucr = (env->mmucr & ~MMUCR_URC_MASK) | (urc << MMUCR_URC_OFFSET);
+ }
+ 
+ /* Find itlb entry - update itlb from utlb if necessary and asked for
