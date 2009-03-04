@@ -1,0 +1,320 @@
+diff --git a/target-sh4/cpu.h b/target-sh4/cpu.h
+index 4a9ddea..2b17a93 100644
+--- a/target-sh4/cpu.h
++++ b/target-sh4/cpu.h
+@@ -153,6 +153,14 @@ typedef struct CPUSH4State {
+     int intr_at_halt;		/* SR_BL ignored during sleep */
+     store_request_t *store_requests;
+     store_request_t **store_request_tail;
++
++#if !defined(CONFIG_USER_ONLY)
++    /* vpn to utlb entry caches (too much space for user emulation) */
++    uint8_t utlbs_1k[4194304]; /* 222 => 4 Mb */
++    uint8_t utlbs_4k[1048576]; /* 220 => 1 Mb */
++    uint8_t utlbs_64k[65536]; /* 216 => 64 Kb */
++    uint8_t utlbs_1m[4096]; /* 212 => 4 Kb */
++#endif
+ } CPUSH4State;
+ 
+ CPUSH4State *cpu_sh4_init(const char *cpu_model);
+diff --git a/target-sh4/helper.c b/target-sh4/helper.c
+index 54a3f1f..c9b2ef0 100644
+--- a/target-sh4/helper.c
++++ b/target-sh4/helper.c
+@@ -239,6 +239,29 @@ static int itlb_replacement(CPUState * env)
+     assert(0);
+ }
+ 
++static inline int is_tlb_matching (tlb_t *entry, int use_asid,
++                                   uint8_t asid, target_ulong address)
++{
++    target_ulong start, end;
++
++    /* Invalid entry */
++    if (unlikely(!entry->v))
++        return 0;
++
++    /* Bad ASID */
++    if (unlikely (!entry->sh && use_asid && entry->asid != asid))
++        return 0;
++
++    start = (entry->vpn << 10) & ~(entry->size - 1);
++    end = start + entry->size - 1;
++
++    /* Match */
++    if (likely (address >= start && address <= end))
++        return 1;
++
++    return 0;
++}
++
+ /* Find the corresponding entry in the right TLB
+    Return entry, MMU_DTLB_MISS or MMU_DTLB_MULTIPLE
+ */
+@@ -252,37 +276,59 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
+ 
+     asid = env->pteh & 0xff;
+ 
+-    for (i = 0; i < nbtlb; i++) {
+-	if (!entries[i].v)
+-	    continue;		/* Invalid entry */
+-	if (!entries[i].sh && use_asid && entries[i].asid != asid)
+-	    continue;		/* Bad ASID */
+-#if 0
+-	switch (entries[i].sz) {
+-	case 0:
+-	    size = 1024;	/* 1kB */
+-	    break;
+-	case 1:
+-	    size = 4 * 1024;	/* 4kB */
+-	    break;
+-	case 2:
+-	    size = 64 * 1024;	/* 64kB */
+-	    break;
+-	case 3:
+-	    size = 1024 * 1024;	/* 1MB */
+-	    break;
+-	default:
+-	    assert(0);
+-	}
+-#endif
+-	start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
+-	end = start + entries[i].size - 1;
+-	if (address >= start && address <= end) {	/* Match */
+-	    if (match != MMU_DTLB_MISS)
+-		return MMU_DTLB_MULTIPLE;	/* Multiple match */
+-	    match = i;
+-	}
++    /* In case we are looking at the utlbs. */
++    if (env->utlb == entries)
++    {
++        /* We are most likely to use 4k virtual pages. */
++        i = env->utlbs_4k[address >> 12];
++        if (unlikely (!is_tlb_matching (&entries[i], use_asid,
++                                        asid, address)))
++        {
++            /* Then huge pages */
++            i = env->utlbs_64k[address >> 14];
++            if (unlikely (!is_tlb_matching (&entries[i], use_asid,
++                                            asid, address)))
++            {
++                /* Or *HUGE* pages */
++                i = env->utlbs_1m[address >> 16];
++                if (unlikely (!is_tlb_matching (&entries[i], use_asid,
++                                                asid, address)))
++                {
++                    /* And finally tiny pages (who uses that ??). */
++                    i = env->utlbs_1k[address >> 10];
++                    if (likely (is_tlb_matching (&entries[i], use_asid,
++                                                 asid, address)))
++                        match = i;
++                }
++                else
++                    match = i;
++            }
++            else
++                match = i;
++        }
++        else
++            match = i;
++    }
++    else
++    {
++        /* We keep the traditional o(n) algorithm for itlbs (only 4 of
++         * them). */
++        for (i = 0; i < nbtlb; i++) {
++            if (!entries[i].v)
++                continue;		/* Invalid entry */
++            if (!entries[i].sh && use_asid && entries[i].asid != asid)
++                continue;		/* Bad ASID */
++
++            start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
++            end = start + entries[i].size - 1;
++            if (address >= start && address <= end) {	/* Match */
++                if (match != MMU_DTLB_MISS)
++                    return MMU_DTLB_MULTIPLE;	/* Multiple match */
++                match = i;
++            }
++        }
+     }
++
+     return match;
+ }
+ 
+@@ -402,6 +448,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
+ 		*prot = (rw == 1)? PAGE_WRITE : PAGE_READ;
+ 		break;
+ 	    }
++
+ 	} else if (n == MMU_DTLB_MISS) {
+ 	    n = (rw == 1) ? MMU_DTLB_MISS_WRITE :
+ 		MMU_DTLB_MISS_READ;
+@@ -411,8 +458,8 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
+ 	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
+ 	    (address & (matching->size - 1));
+ 	if ((rw == 1) & !matching->d)
+-	    n = MMU_DTLB_INITIAL_WRITE;
+-	else
++            n = MMU_DTLB_INITIAL_WRITE;
++        else
+ 	    n = MMU_OK;
+     }
+     return n;
+@@ -544,18 +591,23 @@ void cpu_load_tlb(CPUState * env)
+     entry->v    = (uint8_t)cpu_ptel_v(env->ptel);
+     entry->ppn  = cpu_ptel_ppn(env->ptel);
+     entry->sz   = (uint8_t)cpu_ptel_sz(env->ptel);
++
+     switch (entry->sz) {
+     case 0: /* 00 */
+         entry->size = 1024; /* 1K */
++        env->utlbs_1k[entry->vpn] = n;
+         break;
+     case 1: /* 01 */
+         entry->size = 1024 * 4; /* 4K */
++        env->utlbs_4k[entry->vpn >> 2] = n;
+         break;
+     case 2: /* 10 */
+         entry->size = 1024 * 64; /* 64K */
++        env->utlbs_64k[entry->vpn >> 6] = n;
+         break;
+     case 3: /* 11 */
+         entry->size = 1024 * 1024; /* 1M */
++        env->utlbs_1m[entry->vpn >> 10] = n;
+         break;
+     default:
+         assert(0);
+@@ -570,7 +622,7 @@ void cpu_load_tlb(CPUState * env)
+     entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
+ }
+ 
+-void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
++void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *env, target_phys_addr_t addr,
+ 				    uint32_t mem_value)
+ {
+     int associate = addr & 0x0000080;
+@@ -578,7 +630,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+     uint8_t d = (uint8_t)((mem_value & 0x00000200) >> 9);
+     uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
+     uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
+-    int use_asid = (s->mmucr & MMUCR_SV) == 0 || (s->sr & SR_MD) == 0;
++    int use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
+ 
+     if (associate) {
+         int i;
+@@ -587,7 +639,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+ 
+ 	/* search UTLB */
+ 	for (i = 0; i < UTLB_SIZE; i++) {
+-            tlb_t * entry = &s->utlb[i];
++            tlb_t * entry = &env->utlb[i];
+             if (!entry->v)
+ 	        continue;
+ 
+@@ -595,8 +647,8 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+                 && (!use_asid || entry->asid == asid || entry->sh)) {
+ 	        if (utlb_match_entry) {
+ 		    /* Multiple TLB Exception */
+-		    s->exception_index = 0x140;
+-		    s->tea = addr;
++		    env->exception_index = 0x140;
++		    env->tea = addr;
+ 		    break;
+ 	        }
+ 		if (entry->v && !v)
+@@ -605,12 +657,12 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+ 		entry->d = d;
+ 	        utlb_match_entry = entry;
+ 	    }
+-	    increment_urc(s); /* per utlb access */
++	    increment_urc(env); /* per utlb access */
+ 	}
+ 
+ 	/* search ITLB */
+ 	for (i = 0; i < ITLB_SIZE; i++) {
+-            tlb_t * entry = &s->itlb[i];
++            tlb_t * entry = &env->itlb[i];
+             if (entry->vpn == vpn
+                 && (!use_asid || entry->asid == asid || entry->sh)) {
+ 	        if (entry->v && !v)
+@@ -623,25 +676,42 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+ 	    }
+ 	}
+ 
+ 	if (needs_tlb_flush)
+-	    tlb_flush_page(s, vpn << 10);
++	    tlb_flush_page(env, vpn << 10);
+         
+     } else {
+         int index = (addr & 0x00003f00) >> 8;
+-        tlb_t * entry = &s->utlb[index];
++        tlb_t * entry = &env->utlb[index];
+ 	if (entry->v) {
+ 	    /* Overwriting valid entry in utlb. */
+             target_ulong address = entry->vpn << 10;
+-	    if (!same_tlb_entry_exists(s->itlb, ITLB_SIZE, entry)) {
+-	        tlb_flush_page(s, address);
++	    if (!same_tlb_entry_exists(env->itlb, ITLB_SIZE, entry)) {
++	        tlb_flush_page(env, address);
+ 	    }
+ 	}
+ 	entry->asid = asid;
+ 	entry->vpn = vpn;
+ 	entry->d = d;
+ 	entry->v = v;
+-	increment_urc(s);
++        switch (entry->sz) {
++        case 0: /* 00 */
++            env->utlbs_1k[entry->vpn] = index;
++            break;
++        case 1: /* 01 */
++            env->utlbs_4k[entry->vpn >> 2] = index;
++            break;
++        case 2: /* 10 */
++            env->utlbs_64k[entry->vpn >> 6] = index;
++            break;
++        case 3: /* 11 */
++            env->utlbs_1m[entry->vpn >> 10] = index;
++            break;
++        default:
++            assert(0);
++            break;
++        }
++	increment_urc(env);
+     }
+ }
+ 
+ #endif
+index df81052..eab21a6 100644
+--- a/target-sh4/translate.c
++++ b/target-sh4/translate.c
+@@ -202,6 +202,11 @@ static void cpu_sh4_reset(CPUSH4State * env)
+     set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+ #endif
+     env->mmucr = 0;
++
++    memset (env->utlbs_1k, 0, sizeof (env->utlbs_1k));
++    memset (env->utlbs_4k, 0, sizeof (env->utlbs_4k));
++    memset (env->utlbs_64k, 0, sizeof (env->utlbs_64k));
++    memset (env->utlbs_1m, 0, sizeof (env->utlbs_1m));
+ }
+ 
+ typedef struct {
+@@ -510,7 +515,7 @@ static void _decode_opc(DisasContext * ctx)
+        to this list.  When we see an instruction that is neither movca.l
+        nor ocbi, we perform the stores recorded in this list.  When we see
+        ocbi, we check if the stores list has the address being invalidated.
+-       If so, we remove the address from the list.  
++       If so, we remove the address from the list.
+ 
+        To optimize, we only try to flush stores when we're at the start of
+        TB, or if we already saw movca.l in this TB and did not flush stores
+@@ -1565,7 +1570,7 @@ static void _decode_opc(DisasContext * ctx)
+ 	}
+ 	return;
+     case 0x00c3:		/* movca.l R0,@Rm */
+-	gen_helper_movcal (REG(B11_8), REG(0));	
++	gen_helper_movcal (REG(B11_8), REG(0));
+ 	ctx->has_movcal = 1;
+ 	return;
+     case 0x40a9:

@@ -16,4 +16,4 @@ staging/fix-movcal-ocbi-emulation.patch
 #
 # SH-4 improvements
 #
-staging/utlb-search-accel.patch
+staging/utlb-search-o1.patch
