@@ -4,8 +4,8 @@ index 4a9ddea..2b17a93 100644
 +++ b/target-sh4/cpu.h
 @@ -153,6 +153,14 @@ typedef struct CPUSH4State {
      int intr_at_halt;		/* SR_BL ignored during sleep */
-     store_request_t *store_requests;
-     store_request_t **store_request_tail;
+     memory_content *movcal_backup;
+     memory_content **movcal_backup_tail;
 +
 +#if !defined(CONFIG_USER_ONLY)
 +    /* vpn to utlb entry caches (too much space for user emulation) */
@@ -300,21 +300,3 @@ index df81052..eab21a6 100644
  }
  
  typedef struct {
-@@ -510,7 +515,7 @@ static void _decode_opc(DisasContext * ctx)
-        to this list.  When we see an instruction that is neither movca.l
-        nor ocbi, we perform the stores recorded in this list.  When we see
-        ocbi, we check if the stores list has the address being invalidated.
--       If so, we remove the address from the list.  
-+       If so, we remove the address from the list.
- 
-        To optimize, we only try to flush stores when we're at the start of
-        TB, or if we already saw movca.l in this TB and did not flush stores
-@@ -1565,7 +1570,7 @@ static void _decode_opc(DisasContext * ctx)
- 	}
- 	return;
-     case 0x00c3:		/* movca.l R0,@Rm */
--	gen_helper_movcal (REG(B11_8), REG(0));	
-+	gen_helper_movcal (REG(B11_8), REG(0));
- 	ctx->has_movcal = 1;
- 	return;
-     case 0x40a9:
