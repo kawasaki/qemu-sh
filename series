@@ -10,7 +10,6 @@ staging/sm501-usb-host.patch
 #
 # SH-4A improvements
 #
-staging/fix-movcal-ocbi-emulation.patch
 
 #
 # SH-4 improvements
