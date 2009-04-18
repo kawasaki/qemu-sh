@@ -2,12 +2,12 @@ Index: trunk/hw/r2d.c
 ===================================================================
 --- trunk/hw/r2d.c	(revision 6676)
 +++ trunk/hw/r2d.c	(working copy)
-@@ -221,7 +221,7 @@
+@@ -222,7 +222,7 @@
+     irq = r2d_fpga_init(0x04000000, sh7750_irl(s));
+     pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
  
-     sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
-     sm501_init(0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
--	       serial_hds[2]);
-+	       irq[SM501], serial_hds[2]);
+-    sm501_init(0x10000000, SM501_VRAM_SIZE, serial_hds[2]);
++    sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
  
      /* onboard CF (True IDE mode, Master only). */
      if ((i = drive_get_index(IF_IDE, 0, 0)) != -1)
@@ -299,7 +299,7 @@ Index: trunk/hw/usb-ohci.c
      ohci->name = name;
  
      ohci->irq = irq;
-@@ -1686,7 +1721,7 @@
+@@ -1687,7 +1722,7 @@
      ohci->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
  
      usb_ohci_init(&ohci->state, num_ports, devfn, ohci->pci_dev.irq[0],
@@ -308,7 +308,7 @@ Index: trunk/hw/usb-ohci.c
  
      pci_register_io_region((struct PCIDevice *)ohci, 0, 256,
                             PCI_ADDRESS_SPACE_MEM, ohci_mapfunc);
-@@ -1698,7 +1733,19 @@
+@@ -1699,7 +1734,19 @@
      OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
  
      usb_ohci_init(ohci, num_ports, devfn, irq,
@@ -333,16 +333,17 @@ Index: trunk/hw/sm501.c
 ===================================================================
 --- trunk/hw/sm501.c	(revision 6676)
 +++ trunk/hw/sm501.c	(working copy)
-@@ -1051,7 +1051,7 @@
+@@ -1055,7 +1055,8 @@
+ 	sm501_draw_crt(s);
  }
  
- void sm501_init(uint32_t base, unsigned long local_mem_base,
--		uint32_t local_mem_bytes, CharDriverState *chr)
-+		uint32_t local_mem_bytes, qemu_irq irq, CharDriverState *chr)
+-void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr)
++void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
++                CharDriverState *chr)
  {
      SM501State * s;
      int sm501_system_config_index;
-@@ -1084,6 +1084,10 @@
+@@ -1089,6 +1090,10 @@
      cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_DC,
                                   0x1000, sm501_disp_ctrl_index);
  
@@ -357,14 +358,15 @@ Index: trunk/hw/devices.h
 ===================================================================
 --- trunk/hw/devices.h	(revision 6676)
 +++ trunk/hw/devices.h	(working copy)
-@@ -75,5 +75,9 @@
+@@ -74,5 +74,10 @@
+ qemu_irq tc6393xb_l3v_get(struct tc6393xb_s *s);
  
  /* sm501.c */
- void sm501_init(uint32_t base, unsigned long local_mem_base,
--		uint32_t local_mem_bytes, CharDriverState *chr);
-+		uint32_t local_mem_bytes, qemu_irq irq, CharDriverState *chr);
+-void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr);
++void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
++                CharDriverState *chr);
 +
 +/* usb-ohci.c */
 +void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
-+			 int num_ports, int devfn, qemu_irq irq);
++                         int num_ports, int devfn, qemu_irq irq);
  #endif
