@@ -1,0 +1,166 @@
+From fa96bfb0b0cc5239e8ca6f81e27c3e30c25f9362 Mon Sep 17 00:00:00 2001
+From: Vladimir Prus <vladimir@codesourcery.com>
+Date: Thu, 2 Apr 2009 17:20:09 +0400
+Subject: [PATCH 2/4] Use symbolic constants.
+To: qemu-devel@nongnu.org
+X-KMail-Transport: CodeSourcery
+X-KMail-Identity: 901867920
+
+---
+ hw/sh_serial.c |   75 ++++++++++++++++++++++++--------------------------------
+ 1 files changed, 32 insertions(+), 43 deletions(-)
+
+diff --git a/hw/sh_serial.c b/hw/sh_serial.c
+index cb7c9d1..4d97f92 100644
+--- a/hw/sh_serial.c
++++ b/hw/sh_serial.c
+@@ -31,11 +31,15 @@
+ 
+ //#define DEBUG_SERIAL
+ 
+-#define SH_SERIAL_FLAG_TEND (1 << 0)
+-#define SH_SERIAL_FLAG_TDE  (1 << 1)
+-#define SH_SERIAL_FLAG_RDF  (1 << 2)
+-#define SH_SERIAL_FLAG_BRK  (1 << 3)
+-#define SH_SERIAL_FLAG_DR   (1 << 4)
++#define SCR_RE   (1 << 4)
++#define SCR_TE   (1 << 5)
++#define SCR_RIE  (1 << 6)
++#define SCR_TIE  (1 << 7)
++
++#define FSR_DR   (1 << 0)
++#define FSR_RDF  (1 << 1)
++#define FSR_TDFE (1 << 5)
++#define FSR_TEND (1 << 6)
+ 
+ typedef struct {
+     uint8_t smr;
+@@ -54,7 +58,6 @@ typedef struct {
+ 
+     int freq;
+     int feat;
+-    int flags;
+     int rtrg;
+ 
+     CharDriverState *chr;
+@@ -93,12 +96,12 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
+     case 0x08: /* SCR */
+         /* TODO : For SH7751, SCIF mask should be 0xfb. */
+         s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfa : 0xff);
+-        if (!(val & (1 << 5)))
+-            s->flags |= SH_SERIAL_FLAG_TEND;
++        if (!(val & SCR_TE))
++            s->sr |= FSR_TEND;
+         if ((s->feat & SH_SERIAL_FEAT_SCIF) && s->txi) {
+-	    qemu_set_irq(s->txi, val & (1 << 7));
++	    qemu_set_irq(s->txi, val & SCR_TIE);
+         }
+-        if (!(val & (1 << 6))) {
++        if (!(val & SCR_RIE)) {
+ 	    qemu_set_irq(s->rxi, 0);
+         }
+         return;
+@@ -108,7 +111,7 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
+             qemu_chr_write(s->chr, &ch, 1);
+ 	}
+ 	s->dr = val;
+-	s->flags &= ~SH_SERIAL_FLAG_TDE;
++	s->sr &= ~FSR_TDFE;
+         return;
+ #if 0
+     case 0x14: /* FRDR / RDR */
+@@ -119,18 +122,14 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
+     if (s->feat & SH_SERIAL_FEAT_SCIF) {
+         switch(offs) {
+         case 0x10: /* FSR */
+-            if (!(val & (1 << 6)))
+-                s->flags &= ~SH_SERIAL_FLAG_TEND;
+-            if (!(val & (1 << 5)))
+-                s->flags &= ~SH_SERIAL_FLAG_TDE;
+-            if (!(val & (1 << 4)))
+-                s->flags &= ~SH_SERIAL_FLAG_BRK;
+-            if (!(val & (1 << 1)))
+-                s->flags &= ~SH_SERIAL_FLAG_RDF;
+-            if (!(val & (1 << 0)))
+-                s->flags &= ~SH_SERIAL_FLAG_DR;
+-
+-            if (!(val & (1 << 1)) || !(val & (1 << 0))) {
++            /* Bits 2 and 3 cannot be written at all. */
++            val &= 0xf3; 
++            /* Other bits can only be cleared by writing 0
++               to them. In other words, a bit should remain set
++               only if it was set, and value 1 is written.  */            
++            s->sr = s->sr & val;
++
++            if (!(val & FSR_RDF) || !(val & FSR_DR)) {
+                 if (s->rxi) {
+                     qemu_set_irq(s->rxi, 0);
+                 }
+@@ -214,21 +213,11 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
+         case 0x08: /* SCR */
+             ret = s->scr;
+             break;
+-        case 0x10: /* FSR */
+-            ret = 0;
+-            if (s->flags & SH_SERIAL_FLAG_TEND)
+-                ret |= (1 << 6);
+-            if (s->flags & SH_SERIAL_FLAG_TDE)
+-                ret |= (1 << 5);
+-            if (s->flags & SH_SERIAL_FLAG_BRK)
+-                ret |= (1 << 4);
+-            if (s->flags & SH_SERIAL_FLAG_RDF)
+-                ret |= (1 << 1);
+-            if (s->flags & SH_SERIAL_FLAG_DR)
+-                ret |= (1 << 0);
+-
+-            if (s->scr & (1 << 5))
+-                s->flags |= SH_SERIAL_FLAG_TDE | SH_SERIAL_FLAG_TEND;
++        case 0x10: /* FSR */            
++            ret = s->sr;
++
++            if (s->scr & SCR_TE)
++                s->sr |= FSR_TDFE | FSR_TEND;
+ 
+             break;
+         case 0x14:
+@@ -238,7 +227,7 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
+                 if (s->rx_tail == s->rx_capacity)
+                     s->rx_tail = 0;
+                 if (s->rx_cnt < s->rtrg)
+-                    s->flags &= ~SH_SERIAL_FLAG_RDF;
++                    s->sr &= ~FSR_RDF;
+             }
+             break;
+ #if 0
+@@ -290,7 +279,7 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
+ 
+ static int sh_serial_can_receive(sh_serial_state *s)
+ {
+-    return s->scr & (1 << 4);
++    return s->scr & SCR_RE;
+ }
+ 
+ static void sh_serial_receive_byte(sh_serial_state *s, int ch)
+@@ -302,8 +291,8 @@ static void sh_serial_receive_byte(sh_serial_state *s, int ch)
+                 s->rx_head = 0;
+             s->rx_cnt++;
+             if (s->rx_cnt >= s->rtrg) {
+-                s->flags |= SH_SERIAL_FLAG_RDF;
+-                if (s->scr & (1 << 6) && s->rxi) {
++                s->sr |= FSR_RDF;
++                if (s->scr & SCR_RIE && s->rxi) {
+                     qemu_set_irq(s->rxi, 1);
+                 }
+             }
+@@ -377,7 +366,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
+     s = qemu_mallocz(sizeof(sh_serial_state));
+ 
+     s->feat = feat;
+-    s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
++    s->sr = FSR_TEND | FSR_TDFE;
+     s->rtrg = 1;
+ 
+     s->smr = 0;
+-- 
+1.6.2.1
+
