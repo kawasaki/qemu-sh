@@ -5,7 +5,6 @@
 #
 # Board support improvements
 #
-staging/sm501-usb-host.patch
 staging/0001-Make-RX-fifo-size-configurable.patch
 staging/0002-Use-symbolic-constants.patch
 staging/0003-Support-7785-s-serial.patch
