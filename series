@@ -19,4 +19,4 @@ staging/sm501_hwc.patch
 # SH-4 improvements
 #
 staging/utlb-search-o1.patch
-staging/increased-utlb.patch
+#staging/increased-utlb.patch

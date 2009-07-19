@@ -27,7 +27,7 @@ diff --git a/hw/sh_serial.c b/hw/sh_serial.c
 index e004e28..4f606ff 100644
 --- a/hw/sh_serial.c
 +++ b/hw/sh_serial.c
-@@ -154,10 +154,28 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
+@@ -156,10 +156,28 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
              }
  
              return;
@@ -59,7 +59,7 @@ index e004e28..4f606ff 100644
              return;
          }
      }
-@@ -233,12 +251,47 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
+@@ -235,12 +253,47 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
              break;
  #endif
          case 0x1c:
@@ -109,7 +109,7 @@ index e004e28..4f606ff 100644
              ret = 0;
              break;
          }
-@@ -359,6 +412,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
+@@ -361,6 +414,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
  {
      sh_serial_state *s;
      int s_io_memory;
@@ -117,7 +117,8 @@ index e004e28..4f606ff 100644
  
      s = qemu_mallocz(sizeof(sh_serial_state));
  
-@@ -378,14 +432,17 @@ void sh_serial_init (target_phys_addr_t base, int feat,
+@@ -379,16 +433,19 @@ void sh_serial_init (target_phys_addr_t base, int feat,
+     else {
          s->dr = 0xff;
      }
  
@@ -126,7 +127,7 @@ index e004e28..4f606ff 100644
      s->rx_fifo = (uint8_t *)malloc(s->rx_capacity);
      sh_serial_clear_fifo(s);
  
-     s_io_memory = cpu_register_io_memory(0, sh_serial_readfn,
+     s_io_memory = cpu_register_io_memory(sh_serial_readfn,
  					 sh_serial_writefn, s);
 -    cpu_register_physical_memory(P4ADDR(base), 0x28, s_io_memory);
 -    cpu_register_physical_memory(A7ADDR(base), 0x28, s_io_memory);
@@ -138,6 +139,5 @@ index e004e28..4f606ff 100644
  
      s->chr = chr;
  
--- 
-1.6.2.1
+     if (chr)
 
