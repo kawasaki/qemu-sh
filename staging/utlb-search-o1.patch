@@ -2,7 +2,7 @@ diff --git a/target-sh4/cpu.h b/target-sh4/cpu.h
 index 4a9ddea..2b17a93 100644
 --- a/target-sh4/cpu.h
 +++ b/target-sh4/cpu.h
-@@ -153,6 +153,14 @@ typedef struct CPUSH4State {
+@@ -155,6 +155,14 @@ typedef struct CPUSH4State {
      int intr_at_halt;		/* SR_BL ignored during sleep */
      memory_content *movcal_backup;
      memory_content **movcal_backup_tail;
@@ -21,7 +21,7 @@ diff --git a/target-sh4/helper.c b/target-sh4/helper.c
 index 54a3f1f..c9b2ef0 100644
 --- a/target-sh4/helper.c
 +++ b/target-sh4/helper.c
-@@ -239,6 +239,29 @@ static int itlb_replacement(CPUState * env)
+@@ -243,6 +243,29 @@ static int itlb_replacement(CPUState * env)
      assert(0);
  }
  
@@ -51,7 +51,7 @@ index 54a3f1f..c9b2ef0 100644
  /* Find the corresponding entry in the right TLB
     Return entry, MMU_DTLB_MISS or MMU_DTLB_MULTIPLE
  */
-@@ -252,37 +276,59 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
+@@ -256,37 +280,59 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
  
      asid = env->pteh & 0xff;
  
@@ -141,7 +141,7 @@ index 54a3f1f..c9b2ef0 100644
      return match;
  }
  
-@@ -402,6 +448,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
+@@ -406,6 +452,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
  		*prot = (rw == 1)? PAGE_WRITE : PAGE_READ;
  		break;
  	    }
@@ -149,7 +149,7 @@ index 54a3f1f..c9b2ef0 100644
  	} else if (n == MMU_DTLB_MISS) {
  	    n = (rw == 1) ? MMU_DTLB_MISS_WRITE :
  		MMU_DTLB_MISS_READ;
-@@ -411,8 +458,8 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
+@@ -415,8 +462,8 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
  	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
  	    (address & (matching->size - 1));
  	if ((rw == 1) & !matching->d)
@@ -160,7 +160,7 @@ index 54a3f1f..c9b2ef0 100644
  	    n = MMU_OK;
      }
      return n;
-@@ -544,18 +591,23 @@ void cpu_load_tlb(CPUState * env)
+@@ -548,18 +595,23 @@ void cpu_load_tlb(CPUState * env)
      entry->v    = (uint8_t)cpu_ptel_v(env->ptel);
      entry->ppn  = cpu_ptel_ppn(env->ptel);
      entry->sz   = (uint8_t)cpu_ptel_sz(env->ptel);
@@ -184,8 +184,8 @@ index 54a3f1f..c9b2ef0 100644
          break;
      default:
          assert(0);
-@@ -570,7 +622,7 @@ void cpu_load_tlb(CPUState * env)
-     entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
+@@ -592,7 +644,7 @@ void cpu_load_tlb(CPUState * env)
+     tlb_flush(s, 1);
  }
  
 -void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
@@ -193,7 +193,7 @@ index 54a3f1f..c9b2ef0 100644
  				    uint32_t mem_value)
  {
      int associate = addr & 0x0000080;
-@@ -578,7 +630,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+@@ -600,7 +652,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
      uint8_t d = (uint8_t)((mem_value & 0x00000200) >> 9);
      uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
      uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
@@ -202,7 +202,7 @@ index 54a3f1f..c9b2ef0 100644
  
      if (associate) {
          int i;
-@@ -587,7 +639,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+@@ -609,7 +661,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
  
  	/* search UTLB */
  	for (i = 0; i < UTLB_SIZE; i++) {
@@ -211,7 +211,7 @@ index 54a3f1f..c9b2ef0 100644
              if (!entry->v)
  	        continue;
  
-@@ -595,8 +647,8 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+@@ -617,8 +669,8 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
                  && (!use_asid || entry->asid == asid || entry->sh)) {
  	        if (utlb_match_entry) {
  		    /* Multiple TLB Exception */
@@ -222,7 +222,7 @@ index 54a3f1f..c9b2ef0 100644
  		    break;
  	        }
  		if (entry->v && !v)
-@@ -605,12 +657,12 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+@@ -627,12 +679,12 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
  		entry->d = d;
  	        utlb_match_entry = entry;
  	    }
@@ -237,7 +237,7 @@ index 54a3f1f..c9b2ef0 100644
              if (entry->vpn == vpn
                  && (!use_asid || entry->asid == asid || entry->sh)) {
  	        if (entry->v && !v)
-@@ -623,25 +676,42 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+@@ -645,25 +698,42 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
  	    }
  	}
  
@@ -284,11 +284,11 @@ index 54a3f1f..c9b2ef0 100644
      }
  }
  
- #endif
+ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 index df81052..eab21a6 100644
 --- a/target-sh4/translate.c
 +++ b/target-sh4/translate.c
-@@ -202,6 +202,11 @@ static void cpu_sh4_reset(CPUSH4State * env)
+@@ -205,6 +206,11 @@ static void cpu_sh4_reset(CPUSH4State * env)
      set_float_rounding_mode(float_round_to_zero, &env->fp_status);
  #endif
      env->mmucr = 0;

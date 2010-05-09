@@ -1,6 +1,24 @@
---- a/hw/sm501.c	2009-04-26 15:26:53.000000000 +0900
-+++ b/hw/sm501.c	2009-04-26 15:29:19.000000000 +0900
-@@ -435,6 +435,8 @@
+commit 0a4e7cd2374f1d898a25f4ae7d0fb0321433c197
+Author: Shin-ichiro KAWASAKI <kawasaki@juno.dti.ne.jp>
+Date:   Fri Jan 1 15:59:39 2010 +0900
+
+    sh: sm501: Add hardware cursor feature
+    
+    This patch adds hardware cursor feature to SM501 graphics chip emulation,
+    to make the graphic console more useful for QEMU SH4 users.
+    
+    Signed-off-by: Shin-ichiro KAWASAKI <kawasaki@juno.dti.ne.jp>
+    Signed-off-by: Aurelien Jarno <aurelien@aurel32.net>
+---
+ hw/sm501.c          |  154 +++++++++++++++++++++++++++++++++++++++++++++++----
+ hw/sm501_template.h |   42 ++++++++++++++
+ 2 files changed, 185 insertions(+), 11 deletions(-)
+
+diff --git a/hw/sm501.c b/hw/sm501.c
+index 612a8e5..cd1f595 100644
+--- a/hw/sm501.c
++++ b/hw/sm501.c
+@@ -434,6 +434,8 @@
  
  /* end of register definitions */
  
@@ -9,7 +27,7 @@
  
  /* SM501 local memory size taken from "linux/drivers/mfd/sm501.c" */
  static const uint32_t sm501_mem_local_size[] = {
-@@ -527,6 +529,95 @@
+@@ -526,6 +528,95 @@ static uint32_t get_local_mem_size_index(uint32_t size)
      return index;
  }
  
@@ -105,60 +123,60 @@
  static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
  {
      SM501State * s = (SM501State *)opaque;
-@@ -737,13 +828,13 @@
-         ret = s->dc_crt_hwc_addr;
-         break;
+@@ -736,13 +827,13 @@ static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
+ 	ret = s->dc_crt_hwc_addr;
+ 	break;
      case SM501_DC_CRT_HWC_LOC:
--        ret = s->dc_crt_hwc_addr;
-+        ret = s->dc_crt_hwc_location;
-         break;
+-	ret = s->dc_crt_hwc_addr;
++	ret = s->dc_crt_hwc_location;
+ 	break;
      case SM501_DC_CRT_HWC_COLOR_1_2:
--        ret = s->dc_crt_hwc_addr;
-+        ret = s->dc_crt_hwc_color_1_2;
-         break;
+-	ret = s->dc_crt_hwc_addr;
++	ret = s->dc_crt_hwc_color_1_2;
+ 	break;
      case SM501_DC_CRT_HWC_COLOR_3:
--        ret = s->dc_crt_hwc_addr;
-+        ret = s->dc_crt_hwc_color_3;
-         break;
+-	ret = s->dc_crt_hwc_addr;
++	ret = s->dc_crt_hwc_color_3;
+ 	break;
  
      case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400*3 - 4:
-@@ -810,13 +901,13 @@
-         s->dc_panel_hwc_addr = value & 0x8FFFFFF0;
-         break;
+@@ -809,13 +900,13 @@ static void sm501_disp_ctrl_write(void *opaque,
+ 	s->dc_panel_hwc_addr = value & 0x8FFFFFF0;
+ 	break;
      case SM501_DC_PANEL_HWC_LOC:
--        s->dc_panel_hwc_addr = value & 0x0FFF0FFF;
-+        s->dc_panel_hwc_location = value & 0x0FFF0FFF;
-         break;
+-	s->dc_panel_hwc_addr = value & 0x0FFF0FFF;
++	s->dc_panel_hwc_location = value & 0x0FFF0FFF;
+ 	break;
      case SM501_DC_PANEL_HWC_COLOR_1_2:
--        s->dc_panel_hwc_addr = value;
-+        s->dc_panel_hwc_color_1_2 = value;
-         break;
+-	s->dc_panel_hwc_addr = value;
++	s->dc_panel_hwc_color_1_2 = value;
+ 	break;
      case SM501_DC_PANEL_HWC_COLOR_3:
--        s->dc_panel_hwc_addr = value & 0x0000FFFF;
-+        s->dc_panel_hwc_color_3 = value & 0x0000FFFF;
-         break;
+-	s->dc_panel_hwc_addr = value & 0x0000FFFF;
++	s->dc_panel_hwc_color_3 = value & 0x0000FFFF;
+ 	break;
  
      case SM501_DC_CRT_CONTROL:
-@@ -845,13 +936,13 @@
-         s->dc_crt_hwc_addr = value & 0x8FFFFFF0;
-         break;
+@@ -844,13 +935,13 @@ static void sm501_disp_ctrl_write(void *opaque,
+ 	s->dc_crt_hwc_addr = value & 0x8FFFFFF0;
+ 	break;
      case SM501_DC_CRT_HWC_LOC:
--        s->dc_crt_hwc_addr = value & 0x0FFF0FFF;
-+        s->dc_crt_hwc_location = value & 0x0FFF0FFF;
-         break;
+-	s->dc_crt_hwc_addr = value & 0x0FFF0FFF;
++	s->dc_crt_hwc_location = value & 0x0FFF0FFF;
+ 	break;
      case SM501_DC_CRT_HWC_COLOR_1_2:
--        s->dc_crt_hwc_addr = value;
-+        s->dc_crt_hwc_color_1_2 = value;
-         break;
+-	s->dc_crt_hwc_addr = value;
++	s->dc_crt_hwc_color_1_2 = value;
+ 	break;
      case SM501_DC_CRT_HWC_COLOR_3:
--        s->dc_crt_hwc_addr = value & 0x0000FFFF;
-+        s->dc_crt_hwc_color_3 = value & 0x0000FFFF;
-         break;
+-	s->dc_crt_hwc_addr = value & 0x0000FFFF;
++	s->dc_crt_hwc_color_3 = value & 0x0000FFFF;
+ 	break;
  
      case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400*3 - 4:
-@@ -884,6 +975,9 @@
+@@ -883,6 +974,9 @@ static CPUWriteMemoryFunc * const sm501_disp_ctrl_writefn[] = {
  typedef void draw_line_func(uint8_t *d, const uint8_t *s,
-                             int width, const uint32_t *pal);
+ 			    int width, const uint32_t *pal);
  
 +typedef void draw_hwc_line_func(SM501State * s, int crt, uint8_t * palette,
 +                                int c_y, uint8_t *d, int width);
@@ -166,7 +184,7 @@
  #define DEPTH 8
  #include "sm501_template.h"
  
-@@ -938,6 +1032,16 @@
+@@ -937,6 +1031,16 @@ static draw_line_func * draw_line32_funcs[] = {
      draw_line32_16bgr,
  };
  
@@ -183,10 +201,10 @@
  static inline int get_depth_index(DisplayState *s)
  {
      switch(ds_get_bits_per_pixel(s)) {
-@@ -967,8 +1071,10 @@
+@@ -966,8 +1070,10 @@ static void sm501_draw_crt(SM501State * s)
      int dst_bpp = ds_get_bytes_per_pixel(s->ds) + (ds_get_bits_per_pixel(s->ds) % 8 ? 1 : 0);
      uint32_t * palette = (uint32_t *)&s->dc_palette[SM501_DC_CRT_PALETTE
-                                                     - SM501_DC_PANEL_PALETTE];
+ 						    - SM501_DC_PANEL_PALETTE];
 +    uint8_t hwc_palette[3 * 3];
      int ds_depth_index = get_depth_index(s->ds);
      draw_line_func * draw_line = NULL;
@@ -194,8 +212,8 @@
      int full_update = 0;
      int y_start = -1;
      int page_min = 0x7fffffff;
-@@ -996,6 +1102,22 @@
-         break;
+@@ -995,6 +1101,22 @@ static void sm501_draw_crt(SM501State * s)
+ 	break;
      }
  
 +    /* set up to draw hardware cursor */
@@ -216,22 +234,22 @@
 +
      /* adjust console size */
      if (s->last_width != width || s->last_height != height) {
-         qemu_console_resize(s->ds, width, height);
-@@ -1006,7 +1128,8 @@
+ 	qemu_console_resize(s->ds, width, height);
+@@ -1005,7 +1127,8 @@ static void sm501_draw_crt(SM501State * s)
  
      /* draw each line according to conditions */
      for (y = 0; y < height; y++) {
--        int update = full_update;
-+        int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
-+        int update = full_update || update_hwc;
-         ram_addr_t page0 = offset & TARGET_PAGE_MASK;
-         ram_addr_t page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
-         ram_addr_t page;
-@@ -1018,13 +1141,23 @@
+-	int update = full_update;
++	int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
++	int update = full_update || update_hwc;
+ 	ram_addr_t page0 = offset & TARGET_PAGE_MASK;
+ 	ram_addr_t page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
+ 	ram_addr_t page;
+@@ -1017,7 +1140,16 @@ static void sm501_draw_crt(SM501State * s)
  
-         /* draw line and change status */
-         if (update) {
--            draw_line(&(ds_get_data(s->ds)[y * width * dst_bpp]), src, width, palette);
+ 	/* draw line and change status */
+ 	if (update) {
+-	    draw_line(&(ds_get_data(s->ds)[y * width * dst_bpp]), src, width, palette);
 +            uint8_t * d = &(ds_get_data(s->ds)[y * width * dst_bpp]);
 +
 +            /* draw graphics layer */
@@ -242,19 +260,14 @@
 +                draw_hwc_line(s, 1, hwc_palette, y - get_hwc_y(s, 1), d, width);
 +            }
 +
-             if (y_start < 0)
-                 y_start = y;
-             if (page0 < page_min)
-                 page_min = page0;
-             if (page1 > page_max)
-                 page_max = page1;
-+
-         } else {
-             if (y_start >= 0) {
-                 /* flush to display */
---- a/hw/sm501_template.h	2009-04-26 15:26:53.000000000 +0900
-+++ b/hw/sm501_template.h	2009-04-26 14:30:46.000000000 +0900
-@@ -96,6 +96,48 @@
+ 	    if (y_start < 0)
+ 		y_start = y;
+ 	    if (page0 < page_min)
+diff --git a/hw/sm501_template.h b/hw/sm501_template.h
+index 1679df7..d1ceef9 100644
+--- a/hw/sm501_template.h
++++ b/hw/sm501_template.h
+@@ -96,6 +96,48 @@ static void glue(draw_line32_, PIXEL_NAME)(
      } while (-- width != 0);
  }
  
