@@ -9,6 +9,7 @@ staging/0001-Make-RX-fifo-size-configurable.patch
 staging/0002-Use-symbolic-constants.patch
 staging/0003-Support-7785-s-serial.patch
 staging/sm501_hwc.patch
+staging/sm501-2d-fillrect.patch
 
 #
 # SH-4A improvements
